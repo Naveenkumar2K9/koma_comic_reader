@@ -1,6 +1,11 @@
 import React from 'react';
 import {
   ArrowLeft,
+  BatteryCharging,
+  BatteryFull,
+  BatteryLow,
+  BatteryMedium,
+  BatteryWarning,
   ChevronLeft,
   ChevronRight,
   Maximize2,
@@ -9,6 +14,7 @@ import {
   ScanEye,
   Square,
 } from 'lucide-react';
+import { useBatteryStatus } from '../hooks/useBatteryStatus';
 import { ViewMode } from '../types/comic';
 
 interface ReaderHUDProps {
@@ -56,8 +62,34 @@ export const ReaderHUD: React.FC<ReaderHUDProps> = ({
   onToggleFullscreen,
   onInteract,
 }) => {
+  const battery = useBatteryStatus();
   const showTopBar = visible || isEditing;
   const showBottomBar = visible && !isEditing;
+
+  const isLowBattery = battery.supported && battery.level !== null && !battery.charging && battery.level <= 20;
+  const isCriticalBattery = battery.supported && battery.level !== null && !battery.charging && battery.level <= 15;
+
+  const renderBatteryIcon = (className: string) => {
+    if (battery.charging) return <BatteryCharging className={className} aria-hidden="true" />;
+    const lvl = battery.level ?? 100;
+    if (lvl <= 15) return <BatteryWarning className={className} aria-hidden="true" />;
+    if (lvl <= 30) return <BatteryLow className={className} aria-hidden="true" />;
+    if (lvl <= 70) return <BatteryMedium className={className} aria-hidden="true" />;
+    return <BatteryFull className={className} aria-hidden="true" />;
+  };
+
+  const batteryToneClass = battery.charging
+    ? 'text-emerald-400'
+    : isCriticalBattery
+    ? 'text-red-400 font-medium'
+    : isLowBattery
+    ? 'text-amber-400'
+    : 'text-zinc-400';
+
+  const batteryTitle =
+    battery.level !== null
+      ? `Battery ${battery.level}%${battery.charging ? ' · Charging' : isCriticalBattery ? ' · Low power' : ''}`
+      : '';
 
   const panelDisplay =
     viewMode === 'standard'
@@ -70,6 +102,18 @@ export const ReaderHUD: React.FC<ReaderHUDProps> = ({
 
   return (
     <>
+      {/* Unobtrusive low-battery whisper when HUD is hidden during reading */}
+      {isCriticalBattery && !showTopBar && battery.level !== null && (
+        <div
+          aria-live="polite"
+          aria-label={batteryTitle}
+          className="fixed top-2.5 right-3 z-30 pointer-events-none flex items-center gap-1 font-mono-nums text-[11px] text-red-400/90 drop-shadow-[0_1px_2px_rgba(0,0,0,0.9)]"
+        >
+          <BatteryWarning className="w-3.5 h-3.5 shrink-0" aria-hidden="true" />
+          <span>{battery.level}%</span>
+        </div>
+      )}
+
       {/* Top Floating Bar */}
       <div
         data-hud-interactive
@@ -101,7 +145,7 @@ export const ReaderHUD: React.FC<ReaderHUDProps> = ({
             </h1>
           </div>
 
-          <div className="flex items-center gap-2.5 font-mono-nums text-xs text-zinc-300 whitespace-nowrap shrink-0">
+          <div className="flex items-center gap-2 sm:gap-2.5 font-mono-nums text-xs text-zinc-300 whitespace-nowrap shrink-0">
             <span>
               Page {pageIndex + 1} of {totalPages}
             </span>
@@ -111,6 +155,22 @@ export const ReaderHUD: React.FC<ReaderHUDProps> = ({
             <span className={activePanelNumber !== null && viewMode === 'guided' ? 'text-amber-400 font-medium' : 'text-zinc-400'}>
               {panelDisplay}
             </span>
+            {battery.supported && battery.level !== null && (
+              <>
+                <span className="text-zinc-600" aria-hidden="true">
+                  ·
+                </span>
+                <span
+                  title={batteryTitle}
+                  aria-label={batteryTitle}
+                  className={`inline-flex items-center gap-1 whitespace-nowrap shrink-0 ${batteryToneClass}`}
+                >
+                  {renderBatteryIcon('w-3.5 h-3.5 shrink-0')}
+                  <span>{battery.level}%</span>
+                  {isCriticalBattery && <span className="hidden sm:inline">Low</span>}
+                </span>
+              </>
+            )}
           </div>
         </div>
       </div>
