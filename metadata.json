@@ -1,0 +1,6 @@
+{
+  "name": "Koma — Guided Comic Reader",
+  "description": "A responsive, mobile-friendly Guided Panel-by-Panel Comic Book Reader with automatic canvas panel detection, manual bounding-box editing, and smooth pan-and-zoom transitions.",
+  "requestFramePermissions": [],
+  "majorCapabilities": []
+}
